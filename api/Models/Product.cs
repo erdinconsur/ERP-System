@@ -1,38 +1,48 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ErpApi.Models;
 
-public partial class Product
+[Table("products")]
+public class Product
 {
+    [Column("id")]
     public int Id { get; set; }
 
-    public string Sku { get; set; } = null!;
+    [Column("sku")]
+    public string? Sku { get; set; }
 
-    public string Name { get; set; } = null!;
+    [Column("name")]
+    public string Name { get; set; } = string.Empty;
 
-    public int CategoryId { get; set; }
+    [Column("category_id")]
+    public int? CategoryId { get; set; }
 
-    public string Unit { get; set; } = null!;
+    [Column("unit")]
+    public string? Unit { get; set; }
 
+    [Column("sale_price")]
     public decimal SalePrice { get; set; }
 
-    public decimal PurchasePrice { get; set; }
+    [Column("purchase_price")]
+    public decimal? PurchasePrice { get; set; }
 
-    public decimal MinStockLevel { get; set; }
+    [Column("min_stock_level")]
+    public decimal? MinStockLevel { get; set; }
 
+    [Column("is_active")]
     public bool? IsActive { get; set; }
 
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
-    public DateTime UpdatedAt { get; set; }
+    [Column("updated_at")]
+    public DateTime? UpdatedAt { get; set; }
 
-    // Navigation property - EF Core doğrulamasına takılmaması için nullable (?) yapıldı
-    public virtual Category? Category { get; set; }
-
-    public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
-
-    public virtual ICollection<SalesOrderItem> SalesOrderItems { get; set; } = new List<SalesOrderItem>();
-
-    public virtual ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
+    // Navigation Properties (İlişkiler)
+    public Category? Category { get; set; }
+    public ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
+    public ICollection<SalesOrderItem> SalesOrderItems { get; set; } = new List<SalesOrderItem>();
+    public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

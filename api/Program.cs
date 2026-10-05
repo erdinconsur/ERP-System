@@ -1,27 +1,34 @@
 using Microsoft.EntityFrameworkCore;
-using ErpApi.Models; // Modellerin ve ErpSystemContext'in bulunduðu namespace
+using ErpApi.Models;
+using ErpApi.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 
-// MySQL ve Pomelo EF Core entegrasyonu (Doðru Context sýnýfý kullanýldý)
-builder.Services.AddDbContext<ErpSystemContext>(options =>
+// MySQL ve Pomelo EF Core entegrasyonu (AppDbContext)
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Swagger / OpenAPI Servisleri
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // Klasik Swagger Arayüzünü Aktif Ediyoruz
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ERP System API v1");
+    });
 }
 
 app.UseHttpsRedirection();

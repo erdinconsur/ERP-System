@@ -1,118 +1,150 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ErpApi.Data;
+using ErpApi.DTOs.Product;
 using ErpApi.Models;
 
-namespace ErpApi.Controllers
+namespace ErpApi.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class ProductsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ProductsController : ControllerBase
+    private readonly AppDbContext _context;
+
+    public ProductsController(AppDbContext context)
     {
-        private readonly ErpSystemContext _context;
+        _context = context;
+    }
 
-        public ProductsController(ErpSystemContext context)
-        {
-            _context = context;
-        }
-
-        // 1. READ (Tüm Liste): GET api/products
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
-        {
-            return await _context.Products.ToListAsync();
-        }
-
-        // 2. READ (Tek Ürün): GET api/products/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(int id)
-        {
-            var product = await _context.Products.FindAsync(id);
-
-            if (product == null)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
+    {
+        var products = await _context.Products
+            .Include(p => p.Category)
+            .Select(p => new ProductDto
             {
-                return NotFound();
-            }
+                Id = p.Id,
+                Name = p.Name,
+                Sku = p.Sku,
+                SalePrice = p.SalePrice,
+                PurchasePrice = p.PurchasePrice,
+                MinStockLevel = p.MinStockLevel,
+                Unit = p.Unit,
+                IsActive = p.IsActive,
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category != null ? p.Category.Name : null,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            })
+            .ToListAsync();
 
-            return product;
-        }
+        return Ok(products);
+    }
 
-        // 3. CREATE: POST api/products
-        [HttpPost]
-        public async Task<ActionResult<Product>> PostProduct(Product product)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<ProductDto>> GetProduct(int id)
+    {
+        var product = await _context.Products
+            .Include(p => p.Category)
+            .Where(p => p.Id == id)
+            .Select(p => new ProductDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Sku = p.Sku,
+                SalePrice = p.SalePrice,
+                PurchasePrice = p.PurchasePrice,
+                MinStockLevel = p.MinStockLevel,
+                Unit = p.Unit,
+                IsActive = p.IsActive,
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category != null ? p.Category.Name : null,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            })
+            .FirstOrDefaultAsync();
+
+        if (product == null)
+            return NotFound(new { message = $"{id} ID'li ürün bulunamadı." });
+
+        return Ok(product);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto createDto)
+    {
+        var product = new Product
         {
-            product.CreatedAt = DateTime.Now;
-            product.UpdatedAt = DateTime.Now;
+            Name = createDto.Name,
+            Sku = createDto.Sku,
+            SalePrice = createDto.SalePrice,
+            PurchasePrice = createDto.PurchasePrice,
+            MinStockLevel = createDto.MinStockLevel,
+            Unit = createDto.Unit,
+            IsActive = createDto.IsActive ?? true,
+            CategoryId = createDto.CategoryId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow // <-- Güncellenme tarihi eklendi
+        };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
-        }
-
-        // 4. UPDATE: PUT api/products/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduct(int id, Product product)
-        {
-            if (id != product.Id)
+        var createdDto = await _context.Products
+            .Include(p => p.Category)
+            .Where(p => p.Id == product.Id)
+            .Select(p => new ProductDto
             {
-                return BadRequest("ID uyuşmazlığı.");
-            }
+                Id = p.Id,
+                Name = p.Name,
+                Sku = p.Sku,
+                SalePrice = p.SalePrice,
+                PurchasePrice = p.PurchasePrice,
+                MinStockLevel = p.MinStockLevel,
+                Unit = p.Unit,
+                IsActive = p.IsActive,
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category != null ? p.Category.Name : null,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            })
+            .FirstAsync();
 
-            var existingProduct = await _context.Products.FindAsync(id);
-            if (existingProduct == null)
-            {
-                return NotFound();
-            }
+        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, createdDto);
+    }
 
-            // Alanları güncelle
-            existingProduct.Sku = product.Sku;
-            existingProduct.Name = product.Name;
-            existingProduct.CategoryId = product.CategoryId;
-            existingProduct.Unit = product.Unit;
-            existingProduct.SalePrice = product.SalePrice;
-            existingProduct.PurchasePrice = product.PurchasePrice;
-            existingProduct.MinStockLevel = product.MinStockLevel;
-            existingProduct.IsActive = product.IsActive;
-            existingProduct.UpdatedAt = DateTime.Now;
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateProduct(int id, UpdateProductDto updateDto)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound(new { message = $"{id} ID'li ürün bulunamadı." });
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ProductExists(id))
-                {
-                    return NotFound();
-                }
-                else;
-                {
-                    throw;
-                }
-            }
+        product.Name = updateDto.Name;
+        product.Sku = updateDto.Sku;
+        product.SalePrice = updateDto.SalePrice;
+        product.PurchasePrice = updateDto.PurchasePrice;
+        product.MinStockLevel = updateDto.MinStockLevel;
+        product.Unit = updateDto.Unit;
+        product.IsActive = updateDto.IsActive;
+        product.CategoryId = updateDto.CategoryId;
+        product.UpdatedAt = DateTime.UtcNow;
 
-            return NoContent();
-        }
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 
-        // 5. DELETE: DELETE api/products/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProduct(int id)
-        {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                return NotFound();
-            }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteProduct(int id)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound(new { message = $"{id} ID'li ürün bulunamadı." });
 
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
+        _context.Products.Remove(product);
+        await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private bool ProductExists(int id)
-        {
-            return _context.Products.Any(e => e.Id == id);
-        }
+        return NoContent();
     }
 }
