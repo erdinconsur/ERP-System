@@ -82,10 +82,10 @@ public class ProductsController : ControllerBase
             PurchasePrice = createDto.PurchasePrice,
             MinStockLevel = createDto.MinStockLevel,
             Unit = createDto.Unit,
-            IsActive = createDto.IsActive ?? true,
+            IsActive = createDto.IsActive, // Düzeltildi: '?? true' kaldırıldı
             CategoryId = createDto.CategoryId,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow // <-- Güncellenme tarihi eklendi
+            UpdatedAt = DateTime.UtcNow
         };
 
         _context.Products.Add(product);
